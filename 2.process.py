@@ -58,6 +58,42 @@ def create_gene_df(path):
     
     return gene_df
 
+def tidy_split(df, column, sep='|', keep=False):
+    """
+    Split the values of a column and expand so the new DataFrame has one split
+    value per row. Filters rows where the column is missing.
+    
+    Params
+    ------
+    df : pandas.DataFrame
+        dataframe with the column to split and expand
+    column : str
+        the column to split and expand
+    sep : str
+        the string used to split the column's values
+    keep : bool
+        whether to retain the presplit value as it's own row
+    
+    Returns
+    -------
+    pandas.DataFrame
+        Returns a dataframe with the same columns as `df`.
+    """
+    indexes = list()
+    new_values = list()
+    df = df.dropna(subset=[column])
+    for i, presplit in enumerate(df[column].astype(str)):
+        values = presplit.split(sep)
+        if keep and len(values) > 1:
+            indexes.append(i)
+            new_values.append(presplit)
+        for value in values:
+            indexes.append(i)
+            new_values.append(value)
+    new_df = df.iloc[indexes, :].copy()
+    new_df[column] = new_values
+    return new_df
+
 def get_chr_symbol_map(gene_df):
     """
     Create a dataframe for mapping genes to Entrez where all is known is the
@@ -65,24 +101,26 @@ def get_chr_symbol_map(gene_df):
     symbols should map and the majority of synonyms should also map. Only
     synonyms that are ambigious within a chromosome are removed. 
     """
-    primary_df = gene_df[['entrez_gene_id', 'chromosome', 'symbol']]
-    synonyms = (gene_df
-        .synonyms.dropna().str.split('|')
-        .apply(pandas.Series, 1).stack()
-        .rename('symbol')
-        .reset_index(level=1, drop=True)
+    primary_df = (gene_df
+        [['entrez_gene_id', 'chromosome', 'symbol']]
+        .pipe(tidy_split, column='chromosome', keep=True)
     )
+    
     synonym_df = (gene_df
-        [['entrez_gene_id', 'chromosome']]
-        .join(synonyms, how='inner')
+        [['entrez_gene_id', 'chromosome', 'synonyms']]
+        .rename(columns={'synonyms': 'symbol'})
+        .pipe(tidy_split, column='symbol', keep=False)
+        .pipe(tidy_split, column='chromosome', keep=True)
         .drop_duplicates(['chromosome', 'symbol'], keep=False)
     )
+    
     map_df = (primary_df
         .append(synonym_df)
         .drop_duplicates(subset=['chromosome', 'symbol'], keep='first')
         [['symbol', 'chromosome', 'entrez_gene_id']]
         .sort_values(['symbol', 'chromosome'])
     )
+    
     return map_df
 
 
