@@ -5,7 +5,10 @@ import pandas
 
 def create_history_df(path):
     """
-    Process `gene_history.gz` for Project Cognoma.
+    Process `gene_history.gz` for Project Cognoma. Returns a dataframe which
+    maps old GeneIDs to new GeneIDs. GeneIDs are not mapped to themselves, so
+    make sure not to filter all genes without an old GeneID when using this
+    dataset.
     """
     
     renamer = collections.OrderedDict([
@@ -30,7 +33,8 @@ def create_history_df(path):
 
 def create_gene_df(path):
     """
-    Process `Homo_sapiens.gene_info.gz` for Project Cognoma.
+    Process `Homo_sapiens.gene_info.gz` for Project Cognoma. Filters genes to
+    homo sapiens with `tax_id == 9606` to remove Neanderthals et al.
     """
     
     renamer = collections.OrderedDict([
@@ -84,14 +88,14 @@ def get_chr_symbol_map(gene_df):
 
 if __name__ == '__main__':
     
-    # History
+    # History mapper
     path = os.path.join('download', 'gene_history.gz')
     history_df = create_history_df(path)
     
     path = os.path.join('data', 'updater.tsv')
     history_df.to_csv(path, index=False, sep='\t')
 
-    # Genes
+    # Genes data
     path = os.path.join('download', 'Homo_sapiens.gene_info.gz')
     gene_df = create_gene_df(path)
 
@@ -102,4 +106,3 @@ if __name__ == '__main__':
     map_df = get_chr_symbol_map(gene_df)
     path = os.path.join('data', 'chromosome-symbol-mapper.tsv')
     map_df.to_csv(path, index=False, sep='\t')
-
