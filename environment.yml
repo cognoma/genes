@@ -1,0 +1,5 @@
+name: cognoma-genes
+dependencies:
+- numexpr=2.6.0
+- pandas=0.18.1
+- python=3.5.2
