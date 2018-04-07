@@ -10,7 +10,7 @@ def create_history_df(path):
     make sure not to filter all genes without an old GeneID when using this
     dataset.
     """
-    
+
     renamer = collections.OrderedDict([
         ('Discontinued_GeneID', 'old_entrez_gene_id'),
         ('GeneID', 'new_entrez_gene_id'),
@@ -28,7 +28,7 @@ def create_history_df(path):
         .sort_values('old_entrez_gene_id')
     )
     history_df.new_entrez_gene_id = history_df.new_entrez_gene_id.astype(int)
-    
+
     return history_df
 
 def create_gene_df(path):
@@ -36,7 +36,7 @@ def create_gene_df(path):
     Process `Homo_sapiens.gene_info.gz` for Project Cognoma. Filters genes to
     homo sapiens with `tax_id == 9606` to remove Neanderthals et al.
     """
-    
+
     renamer = collections.OrderedDict([
         ('GeneID', 'entrez_gene_id'),
         ('Symbol', 'symbol'),
@@ -48,21 +48,21 @@ def create_gene_df(path):
         ('#tax_id', 'tax_id'),
     ])
 
-    gene_df = (pandas.read_table(path, compression='gzip', na_values='-')
+    gene_df = (pandas.read_table(path, compression='gzip', na_values='-', low_memory=False)
         [list(renamer)]
         .rename(columns=renamer)
         .query("tax_id == 9606")
         .drop(['tax_id'], axis='columns')
         .sort_values('entrez_gene_id')
     )
-    
+
     return gene_df
 
 def tidy_split(df, column, sep='|', keep=False):
     """
     Split the values of a column and expand so the new DataFrame has one split
     value per row. Filters rows where the column is missing.
-    
+
     Params
     ------
     df : pandas.DataFrame
@@ -73,7 +73,7 @@ def tidy_split(df, column, sep='|', keep=False):
         the string used to split the column's values
     keep : bool
         whether to retain the presplit value as it's own row
-    
+
     Returns
     -------
     pandas.DataFrame
@@ -99,13 +99,13 @@ def get_chr_symbol_map(gene_df):
     Create a dataframe for mapping genes to Entrez where all is known is the
     chromosome and symbol. Symbol-chromosome pairs are unique. All approved
     symbols should map and the majority of synonyms should also map. Only
-    synonyms that are ambigious within a chromosome are removed. 
+    synonyms that are ambigious within a chromosome are removed.
     """
     primary_df = (gene_df
         [['entrez_gene_id', 'chromosome', 'symbol']]
         .pipe(tidy_split, column='chromosome', keep=True)
     )
-    
+
     synonym_df = (gene_df
         [['entrez_gene_id', 'chromosome', 'synonyms']]
         .rename(columns={'synonyms': 'symbol'})
@@ -113,23 +113,23 @@ def get_chr_symbol_map(gene_df):
         .pipe(tidy_split, column='chromosome', keep=True)
         .drop_duplicates(['chromosome', 'symbol'], keep=False)
     )
-    
+
     map_df = (primary_df
         .append(synonym_df)
         .drop_duplicates(subset=['chromosome', 'symbol'], keep='first')
         [['symbol', 'chromosome', 'entrez_gene_id']]
         .sort_values(['symbol', 'chromosome'])
     )
-    
+
     return map_df
 
 
 if __name__ == '__main__':
-    
+
     # History mapper
     path = os.path.join('download', 'gene_history.gz')
     history_df = create_history_df(path)
-    
+
     path = os.path.join('data', 'updater.tsv')
     history_df.to_csv(path, index=False, sep='\t')
 
