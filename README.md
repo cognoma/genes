@@ -10,7 +10,7 @@ When encountering genes in Project Cognoma, identify which of the following appr
 
 ## Downloads and data
 
-The raw (downloaded) data is stored in the [`download`](download) directory. [`versions.json`](donwload/versions.json) contains timestamps for the raw data. The raw data is tracked since the Entrez Gene FTP site doesn't version and archive files.
+The raw (downloaded) data is stored in the [`download`](download) directory. [`versions.json`](download/versions.json) contains timestamps for the raw data. The raw data is tracked since the Entrez Gene FTP site doesn't version and archive files.
 
 Created data is stored in the [`data`](data) directory. Applications should use the processed data rather than the raw data, if possible. Applications are strongly encouraged to use versioned (commit-hash-containing) links when accessing data from this repository.
 
