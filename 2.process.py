@@ -3,6 +3,7 @@ import collections
 
 import pandas
 
+
 def create_history_df(path):
     """
     Process `gene_history.gz` for Project Cognoma. Returns a dataframe which
@@ -31,6 +32,7 @@ def create_history_df(path):
 
     return history_df
 
+
 def create_gene_df(path):
     """
     Process `Homo_sapiens.gene_info.gz` for Project Cognoma. Filters genes to
@@ -40,6 +42,7 @@ def create_gene_df(path):
     renamer = collections.OrderedDict([
         ('GeneID', 'entrez_gene_id'),
         ('Symbol', 'symbol'),
+        ('dbXrefs', 'other_id'),
         ('description', 'description'),
         ('chromosome', 'chromosome'),
         ('type_of_gene', 'gene_type'),
@@ -48,7 +51,11 @@ def create_gene_df(path):
         ('#tax_id', 'tax_id'),
     ])
 
-    gene_df = (pandas.read_table(path, compression='gzip', na_values='-', low_memory=False)
+    gene_df = (
+        pandas.read_table(path,
+                          compression='gzip',
+                          na_values='-',
+                          low_memory=False)
         [list(renamer)]
         .rename(columns=renamer)
         .query("tax_id == 9606")
@@ -57,6 +64,7 @@ def create_gene_df(path):
     )
 
     return gene_df
+
 
 def tidy_split(df, column, sep='|', keep=False):
     """
@@ -94,6 +102,7 @@ def tidy_split(df, column, sep='|', keep=False):
     new_df[column] = new_values
     return new_df
 
+
 def get_chr_symbol_map(gene_df):
     """
     Create a dataframe for mapping genes to Entrez where all is known is the
@@ -101,23 +110,26 @@ def get_chr_symbol_map(gene_df):
     symbols should map and the majority of synonyms should also map. Only
     synonyms that are ambigious within a chromosome are removed.
     """
-    primary_df = (gene_df
-        [['entrez_gene_id', 'chromosome', 'symbol']]
+    primary_df = (
+        gene_df
+        .loc[:, ['entrez_gene_id', 'chromosome', 'symbol']]
         .pipe(tidy_split, column='chromosome', keep=True)
-    )
+        )
 
-    synonym_df = (gene_df
-        [['entrez_gene_id', 'chromosome', 'synonyms']]
+    synonym_df = (
+        gene_df
+        .loc[:, ['entrez_gene_id', 'chromosome', 'synonyms']]
         .rename(columns={'synonyms': 'symbol'})
         .pipe(tidy_split, column='symbol', keep=False)
         .pipe(tidy_split, column='chromosome', keep=True)
         .drop_duplicates(['chromosome', 'symbol'], keep=False)
     )
 
-    map_df = (primary_df
+    map_df = (
+        primary_df
         .append(synonym_df)
         .drop_duplicates(subset=['chromosome', 'symbol'], keep='first')
-        [['symbol', 'chromosome', 'entrez_gene_id']]
+        .loc[:, ['symbol', 'chromosome', 'entrez_gene_id']]
         .sort_values(['symbol', 'chromosome'])
     )
 
