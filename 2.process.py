@@ -61,7 +61,6 @@ def create_gene_df(path):
     renamer = collections.OrderedDict([
         ('GeneID', 'entrez_gene_id'),
         ('Symbol', 'symbol'),
-        ('dbXrefs', 'other_id'),
         ('description', 'description'),
         ('chromosome', 'chromosome'),
         ('type_of_gene', 'gene_type'),
