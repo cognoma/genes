@@ -96,13 +96,18 @@ def create_gene_xref_df(path):
 
     # Merge entrez genes to other identifiers
     gene_df = (
-        gene_df
-        .merge(other_ids, left_index=True, right_index=True)
+        pandas.concat([gene_df, other_ids], axis='columns')
         .drop(['other_ids'], axis='columns')
-        )
+    )
 
     # Rename columns before outputing
-    gene_df.columns = ['entrez_gene_id', 'resource', 'identifier']
+    cols = ['entrez_gene_id', 'resource', 'identifier']
+    gene_df.columns = cols
+    gene_df = (
+        gene_df
+        .sort_values(by=cols)
+        .drop_duplicates()
+        )
 
     return gene_df
 
