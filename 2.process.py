@@ -155,7 +155,7 @@ def get_chr_symbol_map(gene_df):
         gene_df
         .loc[:, ['entrez_gene_id', 'chromosome', 'symbol']]
         .pipe(tidy_split, column='chromosome', keep=True)
-        )
+    )
 
     synonym_df = (
         gene_df
