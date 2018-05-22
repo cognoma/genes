@@ -33,10 +33,29 @@ def create_history_df(path):
     return history_df
 
 
+def get_gene_info(path, renamer):
+    """
+    Read in and process gene information file. Filters genes to Homo sapiens
+    with `tax_id == 9606` to remove Neanderthals et al.
+    """
+    gene_df = (
+        pandas.read_table(path,
+                          compression='gzip',
+                          na_values='-',
+                          low_memory=False)
+        [list(renamer)]
+        .rename(columns=renamer)
+        .query("tax_id == 9606")
+        .drop(['tax_id'], axis='columns')
+        .sort_values('entrez_gene_id')
+    )
+
+    return gene_df
+
+
 def create_gene_df(path):
     """
-    Process `Homo_sapiens.gene_info.gz` for Project Cognoma. Filters genes to
-    homo sapiens with `tax_id == 9606` to remove Neanderthals et al.
+    Process `Homo_sapiens.gene_info.gz` for Project Cognoma.
     """
 
     renamer = collections.OrderedDict([
@@ -51,17 +70,40 @@ def create_gene_df(path):
         ('#tax_id', 'tax_id'),
     ])
 
+    gene_df = get_gene_info(path=path, renamer=renamer)
+
+    return gene_df
+
+
+def create_gene_xref_df(path):
+    """
+    Extract xrefs from `Homo_sapiens.gene_info.gz` for Project Cognoma. Will
+    output long data frame of entrez_gene_id by xref identifier.
+    """
+
+    renamer = collections.OrderedDict([
+        ('GeneID', 'entrez_gene_id'),
+        ('dbXrefs', 'other_ids'),
+        ('#tax_id', 'tax_id')
+    ])
+
+    gene_df = get_gene_info(path=path, renamer=renamer)
+
+    # Isolate each dbXref independently and match to entrez_gene_id
+    gene_df = gene_df.pipe(tidy_split, column='other_ids', keep=False)
+
+    # Expand the other ids by first colon delimiter
+    other_ids = gene_df['other_ids'].str.split(pat=':', n=1, expand=True)
+
+    # Merge entrez genes to other identifiers
     gene_df = (
-        pandas.read_table(path,
-                          compression='gzip',
-                          na_values='-',
-                          low_memory=False)
-        [list(renamer)]
-        .rename(columns=renamer)
-        .query("tax_id == 9606")
-        .drop(['tax_id'], axis='columns')
-        .sort_values('entrez_gene_id')
-    )
+        gene_df
+        .merge(other_ids, left_index=True, right_index=True)
+        .drop(['other_ids'], axis='columns')
+        )
+
+    # Rename columns before outputing
+    gene_df.columns = ['entrez_gene_id', 'resource', 'identifier']
 
     return gene_df
 
@@ -146,11 +188,17 @@ if __name__ == '__main__':
     history_df.to_csv(path, index=False, sep='\t')
 
     # Genes data
-    path = os.path.join('download', 'Homo_sapiens.gene_info.gz')
-    gene_df = create_gene_df(path)
+    info_path = os.path.join('download', 'Homo_sapiens.gene_info.gz')
+    gene_df = create_gene_df(info_path)
 
     path = os.path.join('data', 'genes.tsv')
     gene_df.to_csv(path, index=False, sep='\t')
+
+    # Genes xref data
+    gene_xref_df = create_gene_xref_df(info_path)
+
+    path = os.path.join('data', 'genes-xrefs.tsv')
+    gene_xref_df.to_csv(path, index=False, sep='\t')
 
     # Chromosome-Symbol Map
     map_df = get_chr_symbol_map(gene_df)
